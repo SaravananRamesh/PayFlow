@@ -16,7 +16,7 @@ Internet → DO Load Balancer → NGINX Ingress Controller → PayFlow Pods (2-1
 
 ## Prerequisites
 
-- [DigitalOcean account](https://cloud.digitalocean.com) with credits
+- [DigitalOcean account](https://cloud.digitalocean.com)
 - [doctl](https://docs.digitalocean.com/reference/doctl/how-to/install/) CLI installed and authenticated
 - [kubectl](https://kubernetes.io/docs/tasks/tools/) installed
 - [Docker](https://docs.docker.com/get-docker/) installed
