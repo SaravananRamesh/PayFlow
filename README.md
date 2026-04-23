@@ -192,9 +192,3 @@ helm uninstall nginx-ingress
 doctl kubernetes cluster delete payflow-cluster --force
 doctl registry delete payflow-registry --force
 ```
-
----
-
-## License
-
-MIT — Built for DigitalOcean Sr. TAM interview assessment.
