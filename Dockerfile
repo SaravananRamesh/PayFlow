@@ -2,16 +2,23 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy dependency files first (layer caching)
+# Create non-root user early
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -S appuser -u 1001 -G appgroup
+
+# Copy dependency files and install
 COPY package*.json ./
 RUN npm ci --only=production
 
 # Copy application code
 COPY server.js ./
 
-# Run as non-root user for security
-RUN addgroup -g 1001 -S appgroup && \
-    adduser -S appuser -u 1001 -G appgroup
+# Give appuser ownership of all app files
+RUN chown -R appuser:appgroup /app
+
+# Create data directory and give appuser ownership
+RUN mkdir -p /data && chown -R appuser:appgroup /data
+
 USER appuser
 
 EXPOSE 3000

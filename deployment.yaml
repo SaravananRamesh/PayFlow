@@ -14,9 +14,20 @@ spec:
       labels:
         app: payflow
     spec:
+      # ── Pod AntiAffinity: spread app pods across different nodes for HA ──
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - payflow
+              topologyKey: "kubernetes.io/hostname"
       containers:
         - name: payflow
-          image: registry.digitalocean.com/<your-registry>/payflow:latest
+          image: registry.digitalocean.com/payflow-registry/payflow:latest
           ports:
             - containerPort: 3000
           resources:
@@ -43,3 +54,21 @@ spec:
               value: "3000"
             - name: NODE_ENV
               value: "production"
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: payflow-secrets
+                  key: ADMIN_PASSWORD
+            - name: DB_HOST
+              value: "postgres"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: "payflow"
+            - name: DB_USER
+              value: "payflow"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: payflow-secrets
+                  key: DB_PASSWORD
