@@ -49,26 +49,8 @@ spec:
               port: 3000
             initialDelaySeconds: 5
             periodSeconds: 5
-          env:
-            - name: PORT
-              value: "3000"
-            - name: NODE_ENV
-              value: "production"
-            - name: ADMIN_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: payflow-secrets
-                  key: ADMIN_PASSWORD
-            - name: DB_HOST
-              value: "postgres"
-            - name: DB_PORT
-              value: "5432"
-            - name: DB_NAME
-              value: "payflow"
-            - name: DB_USER
-              value: "payflow"
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: payflow-secrets
-                  key: DB_PASSWORD
+          envFrom:
+            - configMapRef:
+                name: payflow-config       # non-sensitive config (ports, hostnames, env)
+            - secretRef:
+                name: payflow-secrets      # sensitive credentials (passwords)
