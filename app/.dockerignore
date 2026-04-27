@@ -1,0 +1,31 @@
+# Dependencies — reinstalled fresh during build
+node_modules
+npm-debug.log*
+
+# Git
+.git
+.gitignore
+
+# Docs — not needed at runtime
+README.md
+*.md
+
+# Kubernetes configs — don't belong in the container
+k8s/
+
+# Environment & secrets — injected at runtime via K8s secrets
+.env
+.env.*
+*-secrets.yaml
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Test files
+*.test.js
+coverage/
