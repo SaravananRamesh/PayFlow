@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Environment & secrets — never commit these
+.env
+.env.local
+.env.*.local
+*-secrets.yaml
+*.secret.yaml
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Docker
+.docker/
+
+# IDE
+.vscode/
+.idea/
+
+# Build artifacts
+dist/
+build/
