@@ -54,7 +54,7 @@ Internet → DO Load Balancer → NGINX Ingress → PayFlow Pods (2-10, spread a
 ```bash
 doctl kubernetes cluster create payflow-cluster \
   --region nyc1 \
-  --node-pool "name=worker-pool;size=s-2vcpu-4gb;count=2;auto-scale=true;min-nodes=2;max-nodes=4" \
+  --node-pool "name=worker-pool;size=s-1vcpu-2gb;count=2;auto-scale=true;min-nodes=2;max-nodes=4" \
   --version latest
 ```
 
