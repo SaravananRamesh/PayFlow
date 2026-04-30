@@ -56,7 +56,7 @@ payflow-saas/
 ```bash
 doctl kubernetes cluster create payflow-cluster \
   --region nyc1 \
-  --node-pool "name=worker-pool;size=s-1vcpu-2gb;count=2;auto-scale=true;min-nodes=2;max-nodes=4" \
+  --node-pool "name=worker-pool;size=s-1vcpu-2gb;count=2;auto-scale=true;min-nodes=2;max-nodes=3" \
   --version latest
 ```
 
