@@ -5,7 +5,7 @@ A containerized Node.js invoicing application deployed on **DigitalOcean Kuberne
 ## Architecture Overview
 
 ```
-Internet → DO Load Balancer → NGINX Ingress → PayFlow Pods (2-10, spread across nodes)
+Internet → DO Load Balancer → NGINX Ingress → PayFlow Pods (2–10, spread across nodes)
                                                       ↓
                                                PostgreSQL Pod
                                                       ↓
@@ -30,19 +30,21 @@ Internet → DO Load Balancer → NGINX Ingress → PayFlow Pods (2-10, spread a
 ## Project Structure
 
 ```
-.
-├── Dockerfile
-├── server.js
-├── package.json
-├── package-lock.json
-├── .dockerignore
-├── deployment.yaml       # PayFlow app deployment with pod anti-affinity
-├── service.yaml          # ClusterIP service
-├── ingress.yaml          # NGINX ingress
-├── hpa.yaml              # Horizontal Pod Autoscaler
-├── postgres.yaml         # PostgreSQL deployment + ClusterIP service
-├── pvc.yaml              # PersistentVolumeClaim for PostgreSQL
-└── secret.yaml           # Kubernetes Secret (admin + DB passwords)
+payflow-saas/
+├── app/
+│   ├── server.js          # Express app with invoice API and /metrics endpoint
+│   ├── Dockerfile         
+│   └── package.json       
+├── k8s/
+│   ├── deployment.yaml    # PayFlow app deployment with pod anti-affinity
+│   ├── service.yaml       # ClusterIP service
+│   ├── ingress.yaml       # NGINX ingress (ingressClassName: nginx)
+│   ├── hpa.yaml           # Horizontal Pod Autoscaler
+│   ├── postgres.yaml      # PostgreSQL deployment + ClusterIP service
+│   ├── pvc.yaml           # PersistentVolumeClaim for PostgreSQL
+│   ├── configmap.yaml     # Non-sensitive config (PORT, DB_HOST, DB_NAME, DB_USER)
+│   └── secret.yaml        # Kubernetes Secret template (ADMIN_PASSWORD, DB_PASSWORD)
+└── README.md
 ```
 
 ---
@@ -70,50 +72,15 @@ kubectl get nodes  # Verify 2 nodes are Ready
 ```bash
 doctl registry create payflow-registry --region nyc3
 doctl registry login
+
+# Generate and apply the registry secret to your cluster
 doctl registry kubernetes-manifest | kubectl apply -f -
+
+# Link the registry to your cluster so nodes can pull images
 doctl kubernetes cluster registry add payflow-cluster
 ```
 
-### 3. Build & Push the Docker Image
-
-> **Apple Silicon Mac users:** DOKS nodes run `linux/amd64` — always specify the platform flag.
-
-```bash
-npm install
-docker build --platform linux/amd64 -t registry.digitalocean.com/payflow-registry/payflow:latest .
-docker push registry.digitalocean.com/payflow-registry/payflow:latest
-```
-
-### 4. Update the Deployment Image Reference
-
-Edit `deployment.yaml` and replace `<your-registry>` with `payflow-registry` if not already set:
-
-```yaml
-image: registry.digitalocean.com/payflow-registry/payflow:latest
-```
-
-### 5. Create Secrets
-
-Edit `secret.yaml` and set your passwords, then apply using kubectl to avoid committing real credentials:
-
-```bash
-kubectl create secret generic payflow-secrets \
-  --from-literal=ADMIN_PASSWORD=yourchosenpassword \
-  --from-literal=DB_PASSWORD=yourdbpassword \
-  --dry-run=client -o yaml | kubectl apply -f -
-```
-
-### 6. Deploy PostgreSQL
-
-```bash
-kubectl apply -f pvc.yaml
-kubectl apply -f postgres.yaml
-
-# Wait until postgres pod is Running before continuing
-kubectl get pods -w
-```
-
-### 7. Install NGINX Ingress Controller
+### 3. Install NGINX Ingress Controller
 
 ```bash
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
@@ -123,7 +90,14 @@ helm install nginx-ingress ingress-nginx/ingress-nginx \
   --set controller.publishService.enabled=true
 ```
 
-### 8. Install Metrics Server (Required for HPA)
+Wait ~60 seconds for the DO Load Balancer to provision an external IP:
+
+```bash
+kubectl get svc nginx-ingress-ingress-nginx-controller -w
+# Wait until EXTERNAL-IP is assigned (not <pending>)
+```
+
+### 4. Install Metrics Server (Required for HPA)
 
 ```bash
 kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
@@ -135,28 +109,63 @@ Verify after ~60 seconds:
 kubectl top nodes
 ```
 
-### 9. Deploy the Application
+### 5. Build & Push the Docker Image
+
+> **Apple Silicon Mac users:** DOKS nodes run `linux/amd64` — always specify the platform flag.
 
 ```bash
-kubectl apply -f deployment.yaml
-kubectl apply -f service.yaml
-kubectl apply -f ingress.yaml
-kubectl apply -f hpa.yaml
+cd app/
+npm install
+docker build --platform linux/amd64 \
+  -t registry.digitalocean.com/payflow-registry/payflow:latest .
+docker push registry.digitalocean.com/payflow-registry/payflow:latest
+```
+
+### 6. Create Kubernetes Secret
+
+Never commit real credentials to Git. Create the secret directly via kubectl:
+
+```bash
+kubectl create secret generic payflow-secrets \
+  --from-literal=ADMIN_PASSWORD=yourchosenpassword \
+  --from-literal=DB_PASSWORD=yourdbpassword \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+### 7. Deploy PostgreSQL
+
+```bash
+kubectl apply -f k8s/pvc.yaml
+kubectl apply -f k8s/postgres.yaml
+
+# Wait until postgres pod is Running before continuing
+kubectl get pods -w
+```
+
+### 8. Deploy the Application
+
+```bash
+kubectl apply -f k8s/configmap.yaml
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+kubectl apply -f k8s/ingress.yaml
+kubectl apply -f k8s/hpa.yaml
 ```
 
 Verify everything is running:
 
 ```bash
-kubectl get pods       # 2 PayFlow pods + 1 postgres pod
-kubectl get svc        # ClusterIP services
-kubectl get ingress    # Ingress with external IP
-kubectl get hpa        # HPA targets
+kubectl get pods -o wide   # 2 PayFlow pods + 1 postgres pod, on separate nodes
+kubectl get svc            # ClusterIP services
+kubectl get ingress        # Ingress with external IP
+kubectl get hpa            # HPA targets showing CPU %
 ```
 
-### 10. Get Your External IP
+### 9. Get Your External IP
 
 ```bash
-kubectl get svc nginx-ingress-ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+kubectl get svc nginx-ingress-ingress-nginx-controller \
+  -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
 ```
 
 Visit `http://<EXTERNAL-IP>` — you should see the PayFlow dashboard.
@@ -168,7 +177,7 @@ Visit `http://<EXTERNAL-IP>` — you should see the PayFlow dashboard.
 The dashboard is **read-only by default**. To add, update, or delete invoices:
 
 1. Click the **🔒 locked** badge on the New Invoice form
-2. Enter the `ADMIN_PASSWORD` you configured in Step 5
+2. Enter the `ADMIN_PASSWORD` you configured in Step 6
 3. The form unlocks — you can now add invoices, mark them as paid, or delete them
 4. Click **🔓 admin mode** to lock back
 
@@ -177,24 +186,23 @@ The dashboard is **read-only by default**. To add, update, or delete invoices:
 ## API Endpoints
 
 | Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
+|---|---|---|---|
 | `/` | GET | Public | Invoice dashboard (HTML) |
 | `/health` | GET | Public | Health check with pod identity and DB status |
 | `/invoices` | GET | Public | List all invoices (JSON) |
 | `/invoices` | POST | Admin | Create invoice `{client, amount, due}` |
 | `/invoices/:id` | PATCH | Admin | Update invoice status |
 | `/invoices/:id` | DELETE | Admin | Delete invoice |
-| `/metrics` | GET | Public | Prometheus-style metrics |
-| `/generate-report` | GET | Public | CPU-intensive report (for HPA demo) |
+| `/metrics` | GET | Public | Prometheus-formatted metrics |
+| `/generate-report` | GET | Public | CPU-intensive endpoint (for HPA demo) |
 
 ---
 
 ## Verify High Availability & Pod Anti-Affinity
 
 ```bash
-# Confirm pods are on different nodes
+# Confirm app pods are on different nodes
 kubectl get pods -o wide
-
 # The NODE column should show different node names for each payflow-app pod
 ```
 
@@ -203,8 +211,10 @@ kubectl get pods -o wide
 ## Verify Load Balancing
 
 ```bash
-# Hit health endpoint repeatedly — pod hostname changes between requests
-for i in $(seq 1 10); do curl -s http://<EXTERNAL-IP>/health | jq .pod; done
+# Hit health endpoint repeatedly — pod hostname rotates between requests
+for i in $(seq 1 10); do
+  curl -s http://<EXTERNAL-IP>/health | jq .pod
+done
 ```
 
 ---
@@ -212,29 +222,44 @@ for i in $(seq 1 10); do curl -s http://<EXTERNAL-IP>/health | jq .pod; done
 ## Trigger HPA Autoscaling
 
 ```bash
-# Install hey (macOS: brew install hey)
+# Install hey: brew install hey  (macOS)
 hey -z 120s -c 50 http://<EXTERNAL-IP>/generate-report
 
-# Watch in separate terminals
+# Watch in separate terminals:
 kubectl get hpa -w
 kubectl get pods -w
+kubectl get nodes -w
 ```
 
-CPU will spike above 70%, HPA scales from 2 → up to 10 pods, then back down after load stops.
+CPU spikes above 70% → HPA scales pods → required pod anti-affinity triggers cluster autoscaler to provision a new node. After load drops, pods and nodes scale back down.
+
+---
+
+## Scale Down (Save Costs When Not In Use)
+
+```bash
+kubectl scale deployment payflow-app --replicas=0
+kubectl scale deployment postgres --replicas=0
+
+doctl kubernetes cluster node-pool update payflow-cluster worker-pool \
+  --min-nodes 1 --max-nodes 4 --count 1
+```
 
 ---
 
 ## Cost Analysis
 
 | Resource | Spec | Monthly Cost |
-|----------|------|-------------|
-| DOKS Cluster (control plane) | Managed | $0 (free) |
-| Worker Nodes (2× s-2vcpu-4gb) | 2 vCPU, 4GB each | $24/node = $48 |
-| DO Load Balancer | Standard | $12 |
-| Container Registry | Starter | $0 (free tier) |
+|---|---|---|
+| DOKS Cluster (control plane) | Managed, NYC1 | $0 (free) |
+| Worker Nodes (2× s-1vcpu-2gb) | 1 vCPU, 2GB each | $12/node = $24 |
+| DO Load Balancer | Standard, Layer 4 | $12 |
+| Container Registry | Starter tier | $0 (free) |
 | PVC (PostgreSQL data) | 1Gi Block Storage | ~$0.10 |
-| **Total baseline** | | **~$60/mo** |
-| Node autoscaling (peak) | Up to 4 nodes | ~$96 (nodes only) |
+| **Total baseline** | | **~$36/mo** |
+| Node autoscaling peak (4 nodes) | s-1vcpu-2gb × 4 | ~$48 (nodes only) |
+
+> vs AWS EKS equivalent: ~$159/mo — DOKS is 4× cheaper for the same architecture.
 
 ---
 
@@ -247,13 +272,14 @@ See [Future Development Roadmap](#) for planned enhancements including managed P
 ## Cleanup
 
 ```bash
-kubectl delete -f deployment.yaml
-kubectl delete -f service.yaml
-kubectl delete -f ingress.yaml
-kubectl delete -f hpa.yaml
-kubectl delete -f postgres.yaml
-kubectl delete -f pvc.yaml
+kubectl delete -f k8s/deployment.yaml
+kubectl delete -f k8s/service.yaml
+kubectl delete -f k8s/ingress.yaml
+kubectl delete -f k8s/hpa.yaml
+kubectl delete -f k8s/postgres.yaml
+kubectl delete -f k8s/pvc.yaml
+kubectl delete -f k8s/configmap.yaml
 helm uninstall nginx-ingress
 doctl kubernetes cluster delete payflow-cluster --force
 doctl registry delete payflow-registry --force
-``
+```
