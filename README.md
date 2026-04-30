@@ -80,7 +80,20 @@ doctl registry kubernetes-manifest | kubectl apply -f -
 doctl kubernetes cluster registry add payflow-cluster
 ```
 
-### 3. Install NGINX Ingress Controller
+
+### 3. Build & Push the Docker Image
+
+> **Apple Silicon Mac users:** DOKS nodes run `linux/amd64` — always specify the platform flag.
+
+```bash
+cd app/
+npm install
+docker build --platform linux/amd64 \
+  -t registry.digitalocean.com/payflow-registry/payflow:latest .
+docker push registry.digitalocean.com/payflow-registry/payflow:latest
+```
+
+### 4. Install NGINX Ingress Controller
 
 ```bash
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
@@ -97,7 +110,7 @@ kubectl get svc nginx-ingress-ingress-nginx-controller -w
 # Wait until EXTERNAL-IP is assigned (not <pending>)
 ```
 
-### 4. Install Metrics Server (Required for HPA)
+### 5. Install Metrics Server (Required for HPA)
 
 ```bash
 kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
@@ -107,18 +120,6 @@ Verify after ~60 seconds:
 
 ```bash
 kubectl top nodes
-```
-
-### 5. Build & Push the Docker Image
-
-> **Apple Silicon Mac users:** DOKS nodes run `linux/amd64` — always specify the platform flag.
-
-```bash
-cd app/
-npm install
-docker build --platform linux/amd64 \
-  -t registry.digitalocean.com/payflow-registry/payflow:latest .
-docker push registry.digitalocean.com/payflow-registry/payflow:latest
 ```
 
 ### 6. Create Kubernetes Secret
