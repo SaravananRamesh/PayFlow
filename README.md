@@ -113,7 +113,9 @@ kubectl get svc nginx-ingress-ingress-nginx-controller -w
 ### 5. Install Metrics Server (Required for HPA)
 
 ```bash
-kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
+helm upgrade --install metrics-server metrics-server/metrics-server \
+--namespace metrics-server --create-namespace
 ```
 
 Verify after ~60 seconds:
