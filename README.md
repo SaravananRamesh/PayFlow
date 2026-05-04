@@ -271,7 +271,7 @@ doctl kubernetes cluster node-pool update payflow-cluster worker-pool \
 
 ## Future Development
 
-See [Future Development Roadmap](#) for planned enhancements including managed PostgreSQL, AI-powered invoice insights, observability with Prometheus/Grafana, and CI/CD pipeline automation.
+See [Future Development Roadmap](https://github.com/SaravananRamesh/PayFlow/blob/main/docs/payflow-QBR.pdf) for planned enhancements including managed PostgreSQL, AI-powered invoice insights, observability with Prometheus/Grafana, and CI/CD pipeline automation.
 
 ---
 
