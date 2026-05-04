@@ -4,6 +4,9 @@ A containerized Node.js invoicing application deployed on **DigitalOcean Kuberne
 
 ## Architecture Overview
 
+<img width="676" height="302" alt="image" src="https://github.com/user-attachments/assets/513c733c-ac1c-455a-bfd3-3e0fcb1fbf85" />
+
+
 ```
 Internet → DO Load Balancer → NGINX Ingress → PayFlow Pods (2–10, spread across nodes)
                                                       ↓
